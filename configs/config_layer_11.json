@@ -1,0 +1,25 @@
+{
+    "train_test_sets": {
+        "L11": {
+            "train_set": "0_to_50",
+            "test_sets": [0_to_50,50_to_100,100_to_150,150_to_200]
+        }
+    },
+    "heads": [
+        1
+    ],
+    "dims": [
+        4,
+        64
+    ],
+    "lrs": [
+        0.00001,
+        0.000001
+    ],
+    "epochs": 3,
+    "layers": 11,
+    "input_path": "data",
+    "output_path": "11_layer/models",
+    "train_split": 0.8,
+    "bos_token": 2
+}
