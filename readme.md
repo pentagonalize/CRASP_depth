@@ -44,11 +44,11 @@ pip install -r requirements.txt
 - process_logs.sh         
 - reset.sh    
 - parse_logs.py      
+- make_latex_tables.py
 - generate_data.py            
 - train.py    
 - readme.md 
-- requirements.txt    
-- combined_results.csv             
+- requirements.txt
 
 ## Description of Scripts
 
@@ -59,18 +59,16 @@ make_configs.sh
 
 process_logs.sh    
 - parses the training_log.txt files from all subfolders and aggregates them into combined_results.csv
+- also generates latex tables using make_latex_tables.py
  
 generate_data.py      
 - script to generate data by sampling strings from L_k for each k. 
 - the specific quantities can be specified within the file
 
-parse_logs.py  
-- utility used by process_logs.sh to parse all training_log.txt files
-
 train.py    
 - the main training loop which takes in a config.json file for parameters
 
- reset.sh 
+reset.sh
  - deletes all training_log.txt and transformer models saved
 
 ## Training
