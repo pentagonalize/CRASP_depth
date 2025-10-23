@@ -2,14 +2,50 @@ import re
 import csv
 import sys
 import os
+import json
 from collections import defaultdict
 
-def parse_log_file(file_path):
+# Default test ranges (used if none provided via command line)
+DEFAULT_TEST_RANGES = [
+    (201, 250),
+    (251, 300),
+    (301, 350),
+    (351, 400)
+]
+
+def parse_test_ranges(ranges_str):
+    """
+    Parse test ranges from command line string.
+    Expected format: "300,350;350,400;400,450;450,500"
+    Returns list of tuples.
+    """
+    try:
+        ranges = []
+        for range_pair in ranges_str.split(';'):
+            start, end = map(int, range_pair.split(','))
+            ranges.append((start, end))
+        return ranges
+    except (ValueError, IndexError) as e:
+        print(f"Error parsing test ranges '{ranges_str}': {e}")
+        print("Expected format: 'start1,end1;start2,end2;...'")
+        print("Example: '300,350;350,400;400,450;450,500'")
+        sys.exit(1)
+
+def get_range_label(start, end):
+    """Generate a label for a test range."""
+    return f"{start}_to_{end}"
+
+def get_accuracy_field_name(start, end):
+    """Generate field name for accuracy results."""
+    return f"acc_{start}_{end}"
+
+def parse_log_file(file_path, test_ranges):
     """
     Parse the training log file and extract configurations and results.
 
     Args:
         file_path: Path to the log file
+        test_ranges: List of (start, end) tuples for test ranges
 
     Returns:
         List of dictionaries with the results for each model configuration
@@ -36,24 +72,26 @@ def parse_log_file(file_path):
     # Check if all models failed
     failure_match = re.search(r'All models failed to reach 100% validation accuracy\. Saving best model on validation set\.\nBest model - heads: (\d+), dim: (\d+), lr: ([0-9e.-]+)', content)
 
-
-    # Check for results
-    accuracy_match = re.search(
-        r'Accuracy on 100_to_150: ([0-9.]+)%\s*'
-        r'Accuracy on 150_to_200: ([0-9.]+)%\s*'
-        r'Accuracy on 200_to_250: ([0-9.]+)%\s*'
-        r'Accuracy on 250_to_300: ([0-9.]+)%', content)
+    # Build regex pattern for accuracy results based on test_ranges
+    accuracy_pattern_parts = []
+    for start, end in test_ranges:
+        range_label = get_range_label(start, end)
+        accuracy_pattern_parts.append(f'Accuracy on {range_label}: ([0-9.]+)%')
+    
+    accuracy_pattern = r'\s*'.join(accuracy_pattern_parts)
+    accuracy_match = re.search(accuracy_pattern, content)
 
     # Initialize result with common fields
     result = {
         'language': language,
         'layers': layers,
-        'reached_100_percent': False,
-        'acc_100_150': 1.0,
-        'acc_150_200': 1.0,
-        'acc_200_250': 1.0,
-        'acc_250_300': 1.0
+        'reached_100_percent': False
     }
+    
+    # Initialize accuracy fields with default values
+    for start, end in test_ranges:
+        field_name = get_accuracy_field_name(start, end)
+        result[field_name] = 1.0
 
     if success_match:
         # Extract values from the success message
@@ -80,29 +118,28 @@ def parse_log_file(file_path):
         return {}
 
     if accuracy_match:
-        # Extract accuracies from the match
-        result['acc_100_150'] = float(accuracy_match.group(1)) 
-        result['acc_150_200'] = float(accuracy_match.group(2)) 
-        result['acc_200_250'] = float(accuracy_match.group(3)) 
-        result['acc_250_300'] = float(accuracy_match.group(4)) 
+        # Extract accuracies from the match based on test_ranges
+        for i, (start, end) in enumerate(test_ranges):
+            field_name = get_accuracy_field_name(start, end)
+            result[field_name] = float(accuracy_match.group(i + 1))
+    
     return result
 
 
-def write_to_csv(results, output_file, append=False):
+def write_to_csv(results, output_file, test_ranges, append=False):
     """
     Write the parsed results to a CSV file.
 
     Args:
         results: List of dictionaries containing the extracted data
         output_file: Path to the output CSV file
+        test_ranges: List of (start, end) tuples for test ranges
         append: If True, append to existing file, otherwise create new file
     """
     # Define all possible fields that might be in results
-    all_possible_fields = [
-        'language', 'dim', 'heads', 'layers', 'lr',
-        'reached_100_percent',
-        'acc_100_150', 'acc_150_200', 'acc_200_250', 'acc_250_300'
-    ]
+    base_fields = ['language', 'dim', 'heads', 'layers', 'lr', 'reached_100_percent']
+    accuracy_fields = [get_accuracy_field_name(start, end) for start, end in test_ranges]
+    all_possible_fields = base_fields + accuracy_fields
 
     # Ensure all results have all fields (with default values if missing)
     for result in results:
@@ -138,15 +175,19 @@ def write_to_csv(results, output_file, append=False):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python parse_logs.py <input_log_file> [-o output_csv_file] [-a]")
+        print("Usage: python parse_logs.py <input_log_file> [-o output_csv_file] [-a] [-r test_ranges]")
         print("  -o: specify output CSV file (default: training_results.csv)")
         print("  -a: append to existing CSV file (default: overwrite)")
+        print("  -r: specify test ranges (format: 'start1,end1;start2,end2;...')")
+        print(f"      example: -r '300,350;350,400;400,450;450,500'")
+        print(f"Default test ranges: {DEFAULT_TEST_RANGES}")
         sys.exit(1)
 
     # Default values
     input_file = None
     output_file = "training_results.csv"
     append_mode = False
+    test_ranges = DEFAULT_TEST_RANGES
 
     # Parse command line arguments
     i = 1
@@ -157,6 +198,9 @@ def main():
         elif sys.argv[i] == '-a':
             append_mode = True
             i += 1
+        elif sys.argv[i] == '-r' and i+1 < len(sys.argv):
+            test_ranges = parse_test_ranges(sys.argv[i+1])
+            i += 2
         else:
             input_file = sys.argv[i]
             i += 1
@@ -170,13 +214,14 @@ def main():
         sys.exit(1)
 
     print(f"Processing file: {input_file}")
-    results = [parse_log_file(input_file)]
+    print(f"Using test ranges: {test_ranges}")
+    results = [parse_log_file(input_file, test_ranges)]
     print(results)
 
     if not results:
         print("Warning: No results were extracted from the log file.")
     else:
-        write_to_csv(results, output_file, append=append_mode)
+        write_to_csv(results, output_file, test_ranges, append=append_mode)
         print(f"Extracted {len(results)} configuration(s) and wrote results to {output_file}")
 
 if __name__ == "__main__":

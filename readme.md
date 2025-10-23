@@ -43,7 +43,6 @@ pip install -r requirements.txt
 - make_configs.sh         
 - process_logs.sh         
 - reset.sh    
-- make_latex_table.py 
 - parse_logs.py      
 - generate_data.py            
 - train.py    
@@ -68,10 +67,6 @@ generate_data.py
 parse_logs.py  
 - utility used by process_logs.sh to parse all training_log.txt files
 
-make_latex_table.py 
-- takes combined_results.csv and parses the data into the latex tables used in the paper
-- usage: ``` python3 make_latex_table.py combined_data.csv ```
-      
 train.py    
 - the main training loop which takes in a config.json file for parameters
 

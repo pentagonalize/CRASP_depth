@@ -33,10 +33,10 @@ class TransformerCharPredictor(nn.Module):
         x_decoded = self.decoder(tgt=x_embed, memory=torch.zeros_like(x_embed), tgt_mask=tgt_mask)
         # Project output to k dimensions (symbols)
         logits = self.output(x_decoded)  # (batch, seq_len, k)
-        probs = torch.sigmoid(logits)    # Probabilities for each of the k symbols (sigmoid activation)
+        # probs = torch.sigmoid(logits)    # Probabilities for each of the k symbols (sigmoid activation)
 
         # Return both probabilities and the decoded output (to feed into the next step)
-        return probs, x_decoded
+        return logits, x_decoded
 
 
 def train(model, optimizer, device, source, target, k, epochs=10):
@@ -104,7 +104,7 @@ def evaluate(model, source, target, device, set_name=""):
     print(f"Accuracy on {set_name}: {total_accuracy:.2f}%")
     return total_accuracy
 
-def load_and_preprocess_data(input_path, file_name, bos_token):
+def load_and_preprocess_data(input_path, k, file_name, bos_token):
     """Load and preprocess data from source and target files with BOS token.
 
     Args:
@@ -189,10 +189,9 @@ if __name__ == "__main__":
         train_set_name = sets['train_set']
         test_set_names = sets['test_sets']
         file_name = f"L{k}"
-        print(f"Training with k = {k} and layers = {layers}")
 
         # Load training data
-        source_train_full, target_train_full = load_and_preprocess_data(input_path, train_set_name, bos_token)
+        source_train_full, target_train_full = load_and_preprocess_data(input_path, k, train_set_name, bos_token)
 
         # Split the training data into training and validation sets
         split_point = int(len(source_train_full) * train_split)
@@ -220,6 +219,7 @@ if __name__ == "__main__":
 
         # Write training configuration to log
         log_file.write(f"Training configuration:\n")
+        log_file.write(f"k = {k}\n")
         log_file.write(f"Heads: {heads}\n")
         log_file.write(f"Dimensions: {dims}\n")
         log_file.write(f"Learning rates: {lrs}\n")
@@ -322,7 +322,7 @@ if __name__ == "__main__":
             # Evaluate the model on all test files
             log_file.write("Evaluation results:\n")
             for test_set in test_set_names:
-                test_source, test_target = load_and_preprocess_data(input_path, test_set, bos_token)
+                test_source, test_target = load_and_preprocess_data(input_path, k, test_set, bos_token)
                 accuracy = evaluate(current_model, test_source, test_target, device)
                 log_file.write(f"Accuracy on {test_set}: {accuracy:.2f}%\n")
 
@@ -347,7 +347,7 @@ if __name__ == "__main__":
             # Evaluate the model on all test files
             log_file.write("Evaluation results:\n")
             for test_set in test_set_names:
-                test_source, test_target = load_and_preprocess_data(input_path, test_set, bos_token)
+                test_source, test_target = load_and_preprocess_data(input_path, k, test_set, bos_token)
                 accuracy = evaluate(current_model, test_source, test_target, device)
                 log_file.write(f"Accuracy on {test_set}: {accuracy:.2f}%\n")
 

@@ -12,8 +12,8 @@ min_language=3
 max_language=12
 
 # Define common training and testing sets
-train_set="100_to_150"
-test_sets=("100_to_150" "150_to_200" "200_to_250" "250_to_300")
+train_set="201_to_250"
+test_sets=("201_to_250" "251_to_300" "301_to_350" "351_to_400")
 test_file_names=$(IFS=$',\n'; echo "${test_sets[*]}")
 
 # Loop through the transformer layers
@@ -43,9 +43,9 @@ do
   # Add the rest of the configuration for this transformer layer
   json_content+='  },\n'
   json_content+='  "heads": [\n    1\n  ],\n'
-  json_content+='  "dims": [64,\n    256],\n'
-  json_content+='  "lrs": [\n    0.00001,\n    0.000001\n  ],\n'
-  json_content+="  \"epochs\": 10,\n"
+  json_content+='  "dims": [\n    256, \n    512],\n'
+  json_content+='  "lrs": [\n    0.0001, \n    0.00001],\n'
+  json_content+="  \"epochs\": 25,\n"
   json_content+="  \"layers\": ${transformer_layer},\n"
   json_content+="  \"input_path\": \"data\",\n"
   json_content+="  \"output_path\": \"${transformer_layer}_layer/models\",\n"
